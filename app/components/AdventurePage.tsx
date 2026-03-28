@@ -48,10 +48,17 @@ export default function AdventurePage() {
     setXP(player.xp ?? 0);
   }, [router]);
 
-  function handleRegenerate() {
-    sessionStorage.removeItem('sq_current_adventure');
-    router.push('/');
+  async function handleRegenerate() {
+    const raw = sessionStorage.getItem('sq_user_location');
+    if (!raw) { router.replace('/'); return; }
+    const { lat, lng } = JSON.parse(raw);
+    const { generateAdventure } = await import('@/lib/adventure');
+    const adv = generateAdventure(lat, lng, { maxMinutes: 30 });
+    if (!adv) return;
+    sessionStorage.setItem('sq_current_adventure', JSON.stringify(adv));
+    setAdventure(adv);
   }
+
 
   function handleShowRoute() {
     router.push('/map');
@@ -139,9 +146,8 @@ export default function AdventurePage() {
                 intermediateStops.map((stop, i) => (
                   <li key={i} className="stop-item">
                     <span
-                      className={`stop-dot${
-                        i === intermediateStops.length - 1 ? ' stop-dot--current' : ''
-                      }`}
+                      className={`stop-dot${i === intermediateStops.length - 1 ? ' stop-dot--current' : ''
+                        }`}
                     ></span>
                     <span>{stop}</span>
                   </li>

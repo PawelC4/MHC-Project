@@ -30,6 +30,7 @@ export default function AdventurePage() {
   const [active, setActive] = useState(false);
   const [adventure, setAdventure] = useState<Adventure | null>(null);
   const [xp, setXP] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setActive(true));
@@ -48,10 +49,21 @@ export default function AdventurePage() {
     setXP(player.xp ?? 0);
   }, [router]);
 
-  function handleRegenerate() {
-    sessionStorage.removeItem('sq_current_adventure');
-    router.push('/');
+  async function handleRegenerate() {
+    const raw = sessionStorage.getItem('sq_user_location');
+    if (!raw) { router.replace('/'); return; }
+    setLoading(true);
+    // yield to the renderer so the loading state paints before the sync work runs
+    await new Promise<void>(r => setTimeout(r, 1000));
+    const { lat, lng } = JSON.parse(raw);
+    const { generateAdventure } = await import('@/lib/adventure');
+    const adv = generateAdventure(lat, lng, { maxMinutes: 30 });
+    if (!adv) { setLoading(false); return; }
+    sessionStorage.setItem('sq_current_adventure', JSON.stringify(adv));
+    setAdventure(adv as Adventure);
+    setLoading(false);
   }
+
 
   function handleShowRoute() {
     router.push('/map');
@@ -67,7 +79,7 @@ export default function AdventurePage() {
       {/* Top bar */}
       <header className="topbar">
         <div className="topbar-brand">
-          <span className="topbar-logo">SQ</span>
+          <a href="/" className="topbar-logo">SQ</a>
           <span className="topbar-name">Subway Quest</span>
         </div>
         <div className="topbar-xp" aria-label="Your XP">
@@ -78,85 +90,101 @@ export default function AdventurePage() {
       </header>
 
       {/* Card */}
-      <main className="card-stage">
-        <div className="adventure-card" role="article">
-
-          {/* Lines + destination */}
-          <div className="card-header">
-            <div className="card-lines" aria-label="Subway lines">
-              {station.lines.map((l) => (
-                <span key={l} className={`line-badge line--${l}`} aria-label={`Line ${l}`}>
-                  {l}
-                </span>
-              ))}
+      <main className={`card-stage${loading ? ' card-stage--loading' : ''}`}>
+        {loading ? (
+          <div className="loading-inner">
+            <div className="loading-pulse">
+              <div className="pulse-ring"></div>
+              <div className="pulse-ring pulse-ring--delay"></div>
+              <div className="pulse-dot"></div>
             </div>
-            <div className="card-destination">
-              <span className="card-destination-label">Your destination</span>
-              <h2 className="card-station-name">{station.name}</h2>
-              <span className="card-borough">{station.borough}</span>
-            </div>
+            <p className="loading-label">Generating adventure…</p>
           </div>
+        ) : (
+          <div className="adventure-card" role="article">
 
-          {/* Divider */}
-          <div className="card-divider" aria-hidden="true">
-            <span className="divider-dot"></span>
-            <span className="divider-line"></span>
-            <span className="divider-dot"></span>
-          </div>
-
-          {/* Fun fact */}
-          <blockquote className="card-fact">
-            <span className="fact-icon" aria-hidden="true">✦</span>
-            <p>{station.funFact}</p>
-          </blockquote>
-
-          {/* Stats */}
-          <div className="card-stats">
-            <div className="stat-cell">
-              <span className="stat-value">{travelMinutes}</span>
-              <span className="stat-label">min travel</span>
+            {/* Lines + destination */}
+            <div className="card-header">
+              <div className="card-lines" aria-label="Subway lines">
+                {station.lines.map((l) => (
+                  <span key={l} className={`line-badge line--${l}`} aria-label={`Line ${l}`}>
+                    {l}
+                  </span>
+                ))}
+              </div>
+              <div className="card-destination">
+                <span className="card-destination-label">Your destination</span>
+                <h2 className="card-station-name">{station.name}</h2>
+                <span className="card-borough">{station.borough}</span>
+              </div>
             </div>
-            <div className="stat-cell stat-cell--accent">
-              <span className="stat-value">{stopCount}</span>
-              <span className="stat-label">stops away</span>
-            </div>
-            <div className="stat-cell">
-              <span className="stat-value">{xpReward}</span>
-              <span className="stat-label">XP reward</span>
-            </div>
-          </div>
 
-          {/* Intermediate stops */}
-          <div className="card-stops-section">
-            <h3 className="stops-heading">Route via</h3>
-            <ol className="stops-list" aria-label="Intermediate stops">
-              {intermediateStops.length === 0 ? (
-                <li className="stop-item">
-                  <span className="stop-dot stop-dot--current"></span>
-                  <span>Direct — no intermediate stops</span>
-                </li>
-              ) : (
-                intermediateStops.map((stop, i) => (
-                  <li key={i} className="stop-item">
-                    <span
-                      className={`stop-dot${
-                        i === intermediateStops.length - 1 ? ' stop-dot--current' : ''
-                      }`}
-                    ></span>
-                    <span>{stop}</span>
+            {/* Divider */}
+            <div className="card-divider" aria-hidden="true">
+              <span className="divider-dot"></span>
+              <span className="divider-line"></span>
+              <span className="divider-dot"></span>
+            </div>
+
+            {/* Quest */}
+            <div className="card-quest">
+              <span className="quest-tag">Quest</span>
+              <p className="quest-text">{quest}</p>
+            </div>
+
+            {/* Divider */}
+            <div className="card-divider" aria-hidden="true">
+              <span className="divider-dot"></span>
+              <span className="divider-line"></span>
+              <span className="divider-dot"></span>
+            </div>
+
+            {/* Fun fact */}
+            <blockquote className="card-fact">
+              <span className="fact-icon" aria-hidden="true">✦</span>
+              <p className="card-fact-text">{station.funFact}</p>
+            </blockquote>
+
+            {/* Stats */}
+            <div className="card-stats">
+              <div className="stat-cell">
+                <span className="stat-value">{travelMinutes}</span>
+                <span className="stat-label">min travel</span>
+              </div>
+              <div className="stat-cell stat-cell--accent">
+                <span className="stat-value">{stopCount}</span>
+                <span className="stat-label">stops away</span>
+              </div>
+              <div className="stat-cell">
+                <span className="stat-value">{xpReward}</span>
+                <span className="stat-label">XP reward</span>
+              </div>
+            </div>
+
+            {/* Intermediate stops */}
+            <div className="card-stops-section">
+              <h3 className="stops-heading">Route via</h3>
+              <ol className="stops-list" aria-label="Intermediate stops">
+                {intermediateStops.length === 0 ? (
+                  <li className="stop-item">
+                    <span className="stop-dot stop-dot--current"></span>
+                    <span>Direct — no intermediate stops</span>
                   </li>
-                ))
-              )}
-            </ol>
-          </div>
+                ) : (
+                  intermediateStops.map((stop, i) => (
+                    <li key={i} className="stop-item">
+                      <span
+                        className={`stop-dot${i === intermediateStops.length - 1 ? ' stop-dot--current' : ''}`}
+                      ></span>
+                      <span>{stop}</span>
+                    </li>
+                  ))
+                )}
+              </ol>
+            </div>
 
-          {/* Quest */}
-          <div className="card-quest">
-            <span className="quest-tag">Quest</span>
-            <p className="quest-text">{quest}</p>
           </div>
-
-        </div>
+        )}
       </main>
 
       {/* Actions */}

@@ -2,6 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js'
+import GoogleLoginButton from './GoogleLoginButton';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type View = 'splash' | 'loading';
 
@@ -19,11 +26,81 @@ export default function Home() {
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Trigger CSS fade-in after first paint
+  // 2. Add New State for the User and their XP
+  const [user, setUser] = useState<any>(null);
+  const [xp, setXp] = useState<number>(0);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
   useEffect(() => {
     const id = requestAnimationFrame(() => setActive(true));
-    return () => cancelAnimationFrame(id);
+
+    // Always load XP from localStorage immediately on mount
+    setXp(readLocalXP());
+
+    // 3. Check if someone is already logged in when the page loads
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+        fetchProfileXP(session.user.id);
+      }
+      setIsAuthLoading(false);
+    };
+
+    checkSession();
+
+    // 4. Listen for changes (like when they click the Google Button)
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        fetchProfileXP(session.user.id);
+      } else {
+        setUser(null);
+        setXp(readLocalXP()); // keep local XP even when logged out
+      }
+    });
+
+    // Re-read localStorage XP when the user navigates back from a completed quest
+    const handleStorage = () => setXp(readLocalXP());
+    window.addEventListener('storage', handleStorage);
+    // Also catch same-tab updates via a custom event fired after quest completion
+    window.addEventListener('sq:xp-updated', handleStorage);
+
+    return () => {
+      cancelAnimationFrame(id);
+      authListener.subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('sq:xp-updated', handleStorage);
+    };
   }, []);
+
+  // Read XP from localStorage (where MapPage.tsx writes it after quests)
+  const readLocalXP = () => {
+    try {
+      const player = JSON.parse(localStorage.getItem('sq_player') ?? '{}');
+      return player.xp ?? 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  // Fetch XP from Supabase profiles as a supplement (if the table exists)
+  const fetchProfileXP = async (userId: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('total_points')
+      .eq('id', userId)
+      .single();
+
+    if (data?.total_points) {
+      // Use whichever is higher — localStorage (local quest completions) wins
+      setXp((prev) => Math.max(prev, data.total_points));
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
 
   async function handleStart() {
     setError(null);
@@ -36,7 +113,6 @@ export default function Home() {
     }, 900);
 
     try {
-      // Geolocation
       const coords = await new Promise<GeolocationCoordinates>((resolve, reject) => {
         if (!navigator.geolocation) {
           reject(new Error('Geolocation is not supported by this browser.'));
@@ -49,7 +125,6 @@ export default function Home() {
         );
       });
 
-      // Generate adventure (dynamic import keeps this out of the initial bundle)
       const { generateAdventure } = await import('@/lib/adventure');
       const adv = generateAdventure(coords.latitude, coords.longitude, { maxMinutes: 30 });
 
@@ -57,7 +132,6 @@ export default function Home() {
 
       if (!adv) throw new Error('No stations found near you.');
 
-      // Persist for downstream pages
       sessionStorage.setItem('sq_current_adventure', JSON.stringify(adv));
       sessionStorage.setItem(
         'sq_user_location',
@@ -74,8 +148,6 @@ export default function Home() {
   }
 
   return (
-    // ID swaps between view-splash and view-loading so the correct
-    // CSS centering rules apply for each state.
     <div
       id={view === 'splash' ? 'view-splash' : 'view-loading'}
       className={`view${active ? ' active' : ''}`}
@@ -92,11 +164,24 @@ export default function Home() {
               </h1>
               <span className="logo-track logo-track--right"></span>
             </div>
-            <p className="splash-tagline">
-              Drop into the unknown.
-              <br />
-              NYC is your adventure map.
-            </p>
+
+            {/* 6. Dynamic UI: Show different text depending on login status */}
+            {!isAuthLoading && user ? (
+              <div className="flex flex-col items-center gap-2 mb-6">
+                <p className="splash-tagline !mb-2">Welcome back!</p>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-full px-6 py-2 flex items-center gap-3 shadow-lg">
+                  <span className="text-yellow-400 text-xl">★</span>
+                  <span className="text-white font-mono text-lg font-bold"> {xp.toLocaleString()} XP</span>
+                </div>
+              </div>
+            ) : (
+              <p className="splash-tagline">
+                Drop into the unknown.
+                <br />
+                NYC is your adventure map.
+              </p>
+            )}
+
             {error && (
               <p
                 style={{
@@ -111,10 +196,31 @@ export default function Home() {
                 {error}
               </p>
             )}
-            <button onClick={handleStart} className="btn btn--primary btn--lg">
-              Find My Adventure
-            </button>
-            <p className="splash-hint">Allow location access when prompted</p>
+
+            {/* 7. Dynamic Buttons: Hide Google Login if already logged in */}
+            <div className="flex flex-col gap-4 w-full mt-4">
+              {isAuthLoading ? (
+                <div className="h-12 flex items-center justify-center text-zinc-500">Loading...</div>
+              ) : user ? (
+                <div className='buttons'>
+                  <button onClick={handleStart} className="btn btn--primary btn--lg">
+                    Start Next Quest
+                  </button>
+                  <button onClick={handleLogout} className="btn btn--ghost">
+                    Sign Out
+                  </button>
+                </div>
+              ) : (
+                <div className="buttons">
+                  <GoogleLoginButton />
+                  <button onClick={handleStart} className="btn btn--primary btn--lg">
+                    Play as Guest
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <p className="splash-hint mt-4">Allow location access when prompted</p>
           </div>
           <div className="splash-grid" aria-hidden="true"></div>
         </>

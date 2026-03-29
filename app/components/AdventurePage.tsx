@@ -80,8 +80,8 @@ export default function AdventurePage() {
       <header className="topbar">
         <div className="topbar-brand">
           <button onClick={() => router.push('/')}>
-            <span className="topbar-logo">SQ</span>
-            <span className="topbar-name">Subway Quest</span>
+            <span className="topbar-logo">MQ</span>
+            <span className="topbar-name">Metro Quest</span>
           </button>
         </div>
         <div className="topbar-xp" aria-label="Your XP">

@@ -21,6 +21,7 @@ interface Adventure {
   stopCount: number;
   intermediateStops: string[];
   quest: string;
+  clipLabel: string;
   xpReward: number;
 }
 
@@ -171,10 +172,9 @@ export default function MapPage() {
     try {
       const { verifyPhoto } = await import('@/lib/photo');
       const result = await verifyPhoto(
-        photoDataUrl,
-        'image/jpeg',
+        pendingFile,                           // File/Blob — most reliable input for RawImage
         adventure.station.name,
-        adventure.quest,
+        adventure.clipLabel,                   // short visual noun-phrase, NOT the quest sentence
         (msg: string) => setVerifyText(msg)   // live progress updates
       );
 
@@ -189,6 +189,8 @@ export default function MapPage() {
           'sq_player',
           JSON.stringify({ xp: newXP, questsCompleted: newCount, completedStationIds: completedIds })
         );
+        // Notify Home.tsx (same-tab) that XP changed
+        window.dispatchEvent(new Event('sq:xp-updated'));
         sessionStorage.setItem(
           'sq_quest_result',
           JSON.stringify({

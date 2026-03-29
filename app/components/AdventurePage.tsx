@@ -79,8 +79,8 @@ export default function AdventurePage() {
       {/* Top bar */}
       <header className="topbar">
         <div className="topbar-brand">
-          <a href="/" className="topbar-logo">SQ</a>
-          <span className="topbar-name">Subway Quest</span>
+          <a href="/" className="topbar-logo">MQ</a>
+          <span className="topbar-name">Metro Quest</span>
         </div>
         <div className="topbar-xp" aria-label="Your XP">
           <span className="xp-icon">★</span>

@@ -86,7 +86,7 @@ export default function Home() {
             <div className="splash-logo">
               <span className="logo-track"></span>
               <h1 className="logo-wordmark">
-                Subway
+                Metro
                 <br />
                 Quest
               </h1>

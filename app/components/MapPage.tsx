@@ -39,14 +39,11 @@ export default function MapPage() {
   const [userLat, setUserLat] = useState<number | null>(null);
   const [userLng, setUserLng] = useState<number | null>(null);
   const [steps, setSteps] = useState<DirectionStep[]>([]);
-  const [activeTab, setActiveTab] = useState<'schematic' | 'street'>('schematic');
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyText, setVerifyText] = useState('Verifying your photo…');
-
-  const schematicInitRef = useRef(false);
   const leafletInitRef = useRef(false);
 
   // Fade in
@@ -72,61 +69,43 @@ export default function MapPage() {
     }
   }, [router]);
 
-  // Init schematic map + fetch directions once adventure is loaded
+  // Fetch directions once adventure is loaded
   useEffect(() => {
-    if (!adventure || schematicInitRef.current) return;
+    if (!adventure) return;
 
-    const container = document.getElementById('svg-container');
-    if (!container) return;
-
-    schematicInitRef.current = true;
-
-    import('@/lib/map').then(({ initSchematicMap, showSchematicRoute, getDirections }) => {
-      initSchematicMap(container);
-      showSchematicRoute(null, adventure.station.svgNodeId);
-
+    import('@/lib/map').then(({ getDirections }) => {
       // Fall back to station coords offset if user location isn't stored
       const oLat = userLat ?? adventure.station.lat - 0.02;
       const oLng = userLng ?? adventure.station.lng - 0.02;
 
       getDirections(oLat, oLng, adventure.station.lat, adventure.station.lng)
         .then((result: { steps: DirectionStep[] }) => setSteps(result.steps))
-        .catch(() =>
-          setSteps([
-            {
-              type: 'subway',
-              icon: '🚇',
-              instruction: `Head to ${adventure.station.name}`,
-              durationMin: adventure.travelMinutes,
-            },
-          ])
-        );
+        .catch(() => setSteps([
+          {
+            type: 'subway',
+            icon: '🚇',
+            instruction: `Head to ${adventure.station.name}`,
+            durationMin: adventure.travelMinutes,
+          },
+        ]));
     });
   }, [adventure, userLat, userLng]);
 
-  // Init Leaflet when street tab is opened
+  // Init Leaflet map
   useEffect(() => {
-    if (
-      activeTab !== 'street' ||
-      !adventure ||
-      leafletInitRef.current ||
-      userLat === null ||
-      userLng === null
-    )
-      return;
+    if (!adventure || leafletInitRef.current || userLat === null || userLng === null) return;
 
     leafletInitRef.current = true;
-    import('@/lib/map').then(({ initLeafletMap }) => {
-      initLeafletMap(
-        'leaflet-map',
-        userLat,
-        userLng,
-        adventure.station.lat,
-        adventure.station.lng,
-        adventure.station.name
-      );
-    });
-  }, [activeTab, adventure, userLat, userLng]);
+    import('@/lib/map').then(
+      ({ initLeafletMap }) => {
+        initLeafletMap(
+          'leaflet-map',
+          userLat, userLng,
+          adventure.station.lat, adventure.station.lng, adventure.station.name
+        );
+      }
+    );
+  }, [adventure, userLat, userLng]);
 
   // ─── Photo handling ──────────────────────────────────────
 
@@ -318,47 +297,14 @@ export default function MapPage() {
 
       {/* ─── Map canvas ─── */}
       <div className="map-canvas">
-
-        {/* Tab switcher */}
-        <div className="map-tabs" role="tablist" aria-label="Map view">
-          <button
-            className={`map-tab${activeTab === 'schematic' ? ' active' : ''}`}
-            role="tab"
-            aria-selected={activeTab === 'schematic'}
-            aria-controls="panel-schematic"
-            onClick={() => setActiveTab('schematic')}
-          >
-            Schematic
-          </button>
-          <button
-            className={`map-tab${activeTab === 'street' ? ' active' : ''}`}
-            role="tab"
-            aria-selected={activeTab === 'street'}
-            aria-controls="panel-street"
-            onClick={() => setActiveTab('street')}
-          >
-            Street Map
-          </button>
-        </div>
-
-        {/* Schematic SVG panel */}
-        <div
-          id="panel-schematic"
-          role="tabpanel"
-          className={`map-panel${activeTab === 'schematic' ? ' active' : ''}`}
-        >
-          <div id="svg-container" aria-label="NYC subway schematic map"></div>
-        </div>
-
         {/* Leaflet street map panel */}
         <div
           id="panel-street"
           role="tabpanel"
-          className={`map-panel${activeTab === 'street' ? ' active' : ''}`}
+          className="map-panel active"
         >
           <div id="leaflet-map"></div>
         </div>
-
       </div>
     </div>
   );

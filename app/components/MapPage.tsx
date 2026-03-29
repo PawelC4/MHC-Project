@@ -44,6 +44,7 @@ export default function MapPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyDone, setVerifyDone] = useState(false);
   const [verifyText, setVerifyText] = useState('Verifying your photo…');
 
   const schematicInitRef = useRef(false);
@@ -164,16 +165,17 @@ export default function MapPage() {
     if (!pendingFile || !photoDataUrl || !adventure) return;
 
     setIsVerifying(true);
+    setVerifyDone(false);
     setVerifyText('Analyzing your photo…');
 
     try {
-      const { readFileAsBase64, verifyPhoto } = await import('@/lib/photo');
-      const { base64, mediaType } = await readFileAsBase64(pendingFile);
+      const { verifyPhoto } = await import('@/lib/photo');
       const result = await verifyPhoto(
-        base64,
-        mediaType,
+        photoDataUrl,
+        'image/jpeg',
         adventure.station.name,
-        adventure.quest
+        adventure.quest,
+        (msg: string) => setVerifyText(msg)   // live progress updates
       );
 
       if (result.success) {
@@ -201,10 +203,12 @@ export default function MapPage() {
         router.push('/complete');
       } else {
         setIsVerifying(false);
+        setVerifyDone(true);
         setVerifyText(result.message || 'Verification failed. Try a different photo.');
       }
     } catch (err: unknown) {
       setIsVerifying(false);
+      setVerifyDone(true);
       const msg = err instanceof Error ? err.message : 'Verification error.';
       setVerifyText(msg);
     }
@@ -298,9 +302,9 @@ export default function MapPage() {
             )}
           </div>
 
-          {isVerifying && (
+          {(isVerifying || verifyDone) && (
             <div className="verify-status" aria-live="polite">
-              <span className="verify-spinner" aria-hidden="true"></span>
+              {isVerifying && <span className="verify-spinner" aria-hidden="true"></span>}
               <span>{verifyText}</span>
             </div>
           )}

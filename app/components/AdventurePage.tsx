@@ -67,8 +67,10 @@ export default function AdventurePage() {
       {/* Top bar */}
       <header className="topbar">
         <div className="topbar-brand">
-          <span className="topbar-logo">SQ</span>
-          <span className="topbar-name">Subway Quest</span>
+          <button onClick={() => router.push('/')}>
+            <span className="topbar-logo">SQ</span>
+            <span className="topbar-name">Subway Quest</span>
+          </button>
         </div>
         <div className="topbar-xp" aria-label="Your XP">
           <span className="xp-icon">★</span>
@@ -139,9 +141,8 @@ export default function AdventurePage() {
                 intermediateStops.map((stop, i) => (
                   <li key={i} className="stop-item">
                     <span
-                      className={`stop-dot${
-                        i === intermediateStops.length - 1 ? ' stop-dot--current' : ''
-                      }`}
+                      className={`stop-dot${i === intermediateStops.length - 1 ? ' stop-dot--current' : ''
+                        }`}
                     ></span>
                     <span>{stop}</span>
                   </li>

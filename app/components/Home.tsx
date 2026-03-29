@@ -142,7 +142,7 @@ export default function Home() {
               </h1>
               <span className="logo-track logo-track--right"></span>
             </div>
-            
+
             {/* 6. Dynamic UI: Show different text depending on login status */}
             {!isAuthLoading && user ? (
               <div className="flex flex-col items-center gap-2 mb-6">
@@ -180,21 +180,21 @@ export default function Home() {
               {isAuthLoading ? (
                 <div className="h-12 flex items-center justify-center text-zinc-500">Loading...</div>
               ) : user ? (
-                <>
+                <div className='buttons'>
                   <button onClick={handleStart} className="btn btn--primary btn--lg">
                     Start Next Quest
                   </button>
-                  <button onClick={handleLogout} className="text-zinc-400 text-sm hover:text-white transition-colors mt-2">
+                  <button onClick={handleLogout} className="btn btn--ghost">
                     Sign Out
                   </button>
-                </>
+                </div>
               ) : (
-                <>
+                <div className="buttons">
                   <GoogleLoginButton />
                   <button onClick={handleStart} className="btn btn--primary btn--lg">
                     Play as Guest
                   </button>
-                </>
+                </div>
               )}
             </div>
 

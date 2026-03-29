@@ -2,6 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface Station {
   id: string;
@@ -21,6 +27,7 @@ interface Adventure {
   stopCount: number;
   intermediateStops: string[];
   quest: string;
+  clipLabel: string;
   xpReward: number;
 }
 
@@ -44,6 +51,7 @@ export default function MapPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyDone, setVerifyDone] = useState(false);
   const [verifyText, setVerifyText] = useState('Verifying your photo…');
 
   const schematicInitRef = useRef(false);
@@ -164,20 +172,22 @@ export default function MapPage() {
     if (!pendingFile || !photoDataUrl || !adventure) return;
 
     setIsVerifying(true);
+    setVerifyDone(false);
     setVerifyText('Analyzing your photo…');
 
     try {
-      const { readFileAsBase64, verifyPhoto } = await import('@/lib/photo');
-      const { base64, mediaType } = await readFileAsBase64(pendingFile);
+      const { verifyPhoto } = await import('@/lib/photo');
       const result = await verifyPhoto(
-        base64,
-        mediaType,
+        pendingFile,                           // File/Blob — most reliable input for RawImage
         adventure.station.name,
-        adventure.quest
+        adventure.clipLabel,                   // short visual noun-phrase, NOT the quest sentence
+        (msg: string) => setVerifyText(msg)   // live progress updates
       );
 
       if (result.success) {
         const earned = adventure.xpReward;
+        
+        // --- KEEP YOUR EXISTING LOCALSTORAGE CODE ---
         const player = JSON.parse(localStorage.getItem('sq_player') ?? '{}');
         const newXP = (player.xp ?? 0) + earned;
         const newCount = (player.questsCompleted ?? 0) + 1;
@@ -187,6 +197,8 @@ export default function MapPage() {
           'sq_player',
           JSON.stringify({ xp: newXP, questsCompleted: newCount, completedStationIds: completedIds })
         );
+        // Notify Home.tsx (same-tab) that XP changed
+        window.dispatchEvent(new Event('sq:xp-updated'));
         sessionStorage.setItem(
           'sq_quest_result',
           JSON.stringify({
@@ -198,13 +210,47 @@ export default function MapPage() {
           })
         );
 
+        // ════════════════════════════════════════════════════════════
+        // NEW: DEPOSIT THE POINTS INTO SUPABASE
+        // ════════════════════════════════════════════════════════════
+        try {
+          // 1. Check if the user is actually logged in
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session?.user) {
+            // 2. Fetch their current points from the database
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('total_points')
+              .eq('id', session.user.id)
+              .single();
+
+            const currentDbXP = profile?.total_points || 0;
+            const newDbXP = currentDbXP + earned;
+
+            // 3. Overwrite it with the new total
+            await supabase
+              .from('profiles')
+              .update({ total_points: newDbXP })
+              .eq('id', session.user.id);
+              
+            console.log(`Saved ${earned} XP to database! New total: ${newDbXP}`);
+          }
+        } catch (dbError) {
+          console.error("Failed to save XP to database:", dbError);
+        }
+        // ════════════════════════════════════════════════════════════
+
+        // Finally, send them to the success screen
         router.push('/complete');
       } else {
         setIsVerifying(false);
+        setVerifyDone(true);
         setVerifyText(result.message || 'Verification failed. Try a different photo.');
       }
     } catch (err: unknown) {
       setIsVerifying(false);
+      setVerifyDone(true);
       const msg = err instanceof Error ? err.message : 'Verification error.';
       setVerifyText(msg);
     }
@@ -298,9 +344,9 @@ export default function MapPage() {
             )}
           </div>
 
-          {isVerifying && (
+          {(isVerifying || verifyDone) && (
             <div className="verify-status" aria-live="polite">
-              <span className="verify-spinner" aria-hidden="true"></span>
+              {isVerifying && <span className="verify-spinner" aria-hidden="true"></span>}
               <span>{verifyText}</span>
             </div>
           )}

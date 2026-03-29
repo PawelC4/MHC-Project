@@ -2,16 +2,6 @@
 
 import { useEffect } from 'react';
 
-/**
- * SubwayQuestApp
- *
- * Renders the full Subway Quest HTML structure as JSX, then boots the
- * vanilla JS app logic via lib/main.js once the component mounts.
- *
- * All DOM manipulation, Geolocation, Leaflet, and camera access
- * happens in lib/main.js (and its module dependencies) after mount —
- * never during SSR.
- */
 export default function SubwayQuestApp() {
   useEffect(() => {
     let cancelled = false;

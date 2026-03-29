@@ -79,8 +79,10 @@ export default function AdventurePage() {
       {/* Top bar */}
       <header className="topbar">
         <div className="topbar-brand">
-          <a href="/" className="topbar-logo">SQ</a>
-          <span className="topbar-name">Subway Quest</span>
+          <button onClick={() => router.push('/')}>
+            <span className="topbar-logo">SQ</span>
+            <span className="topbar-name">Subway Quest</span>
+          </button>
         </div>
         <div className="topbar-xp" aria-label="Your XP">
           <span className="xp-icon">★</span>

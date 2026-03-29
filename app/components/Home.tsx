@@ -72,12 +72,21 @@ export default function Home() {
       .single();
 
     if (data) {
-      setXp(data.total_points || 0);
+      const realXP = data.total_points || 0;
+      setXp(realXP);
+      
+      const player = JSON.parse(localStorage.getItem('sq_player') ?? '{}');
+      player.xp = realXP;
+      localStorage.setItem('sq_player', JSON.stringify(player));
     }
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    
+    localStorage.removeItem('sq_player');
+    sessionStorage.removeItem('sq_current_adventure');
+    sessionStorage.removeItem('sq_quest_result');
   };
 
   async function handleStart() {
@@ -136,7 +145,7 @@ export default function Home() {
             <div className="splash-logo">
               <span className="logo-track"></span>
               <h1 className="logo-wordmark">
-                Subway
+                Metro
                 <br />
                 Quest
               </h1>
@@ -190,10 +199,10 @@ export default function Home() {
                 </>
               ) : (
                 <>
-                  <GoogleLoginButton />
-                  <button onClick={handleStart} className="btn btn--primary btn--lg">
+                  <button onClick={handleStart} className="btn btn--primary">
                     Play as Guest
                   </button>
+                  <GoogleLoginButton />
                 </>
               )}
             </div>

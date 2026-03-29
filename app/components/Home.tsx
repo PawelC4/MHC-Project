@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js';
+import Leaderboard from "./Leaderboard";
 import GoogleLoginButton from './GoogleLoginButton';
 
 const supabase = createClient(
@@ -221,6 +222,9 @@ export default function Home() {
                     >
                       Sign Out
                     </button>
+                    <div className="">
+                    <Leaderboard />
+                    </div>
                   </div>
                 </>
               ) : (
@@ -229,6 +233,7 @@ export default function Home() {
                     Play as Guest
                   </button>
                   <GoogleLoginButton />
+                  <Leaderboard />
                 </>
               )}
             </div>

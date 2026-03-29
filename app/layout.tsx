@@ -22,7 +22,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Subway Quest — NYC Adventure Generator",
+  title: "MetroQuest",
   description: "Drop into the unknown. NYC is your adventure map.",
 };
 

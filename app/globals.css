@@ -148,6 +148,12 @@ a { color: inherit; text-decoration: none; }
 .btn--primary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
 .btn--primary:disabled { background: var(--color-surface-3); color: var(--color-text-muted); pointer-events: none; }
 
+.btn--signout{
+  background: tomato;
+  color: #0d0d0d;
+}
+.btn--signout:hover { background: #ff745b; }
+
 .btn--ghost {
   background: transparent;
   color: var(--color-text-secondary);

@@ -74,7 +74,7 @@ export default function Home() {
     if (data) {
       const realXP = data.total_points || 0;
       setXp(realXP);
-      
+
       const player = JSON.parse(localStorage.getItem('sq_player') ?? '{}');
       player.xp = realXP;
       localStorage.setItem('sq_player', JSON.stringify(player));
@@ -83,7 +83,7 @@ export default function Home() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    
+
     localStorage.removeItem('sq_player');
     sessionStorage.removeItem('sq_current_adventure');
     sessionStorage.removeItem('sq_quest_result');
@@ -151,7 +151,7 @@ export default function Home() {
               </h1>
               <span className="logo-track logo-track--right"></span>
             </div>
-            
+
             {/* 6. Dynamic UI: Show different text depending on login status */}
             {!isAuthLoading && user ? (
               <div className="flex flex-col items-center gap-2 mb-6">
@@ -190,12 +190,17 @@ export default function Home() {
                 <div className="h-12 flex items-center justify-center text-zinc-500">Loading...</div>
               ) : user ? (
                 <>
-                  <button onClick={handleStart} className="btn btn--primary btn--lg">
+                  <button onClick={handleStart} className="btn btn--primary w-full">
                     Start Next Quest
                   </button>
-                  <button onClick={handleLogout} className="text-zinc-400 text-sm hover:text-white transition-colors mt-2">
-                    Sign Out
-                  </button>
+                  <div className="">
+                    <button
+                      onClick={handleLogout}
+                      className="btn btn--signout flex items-center justify-center gap-3 w-full text-black hover:bg-gray-100 transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>

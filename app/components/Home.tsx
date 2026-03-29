@@ -34,6 +34,9 @@ export default function Home() {
   useEffect(() => {
     const id = requestAnimationFrame(() => setActive(true));
 
+    // Always load XP from localStorage immediately on mount
+    setXp(readLocalXP());
+
     // 3. Check if someone is already logged in when the page loads
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -53,26 +56,45 @@ export default function Home() {
         fetchProfileXP(session.user.id);
       } else {
         setUser(null);
-        setXp(0);
+        setXp(readLocalXP()); // keep local XP even when logged out
       }
     });
+
+    // Re-read localStorage XP when the user navigates back from a completed quest
+    const handleStorage = () => setXp(readLocalXP());
+    window.addEventListener('storage', handleStorage);
+    // Also catch same-tab updates via a custom event fired after quest completion
+    window.addEventListener('sq:xp-updated', handleStorage);
 
     return () => {
       cancelAnimationFrame(id);
       authListener.subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('sq:xp-updated', handleStorage);
     };
   }, []);
 
-  // 5. Fetch their specific XP from your profiles table
+  // Read XP from localStorage (where MapPage.tsx writes it after quests)
+  const readLocalXP = () => {
+    try {
+      const player = JSON.parse(localStorage.getItem('sq_player') ?? '{}');
+      return player.xp ?? 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  // Fetch XP from Supabase profiles as a supplement (if the table exists)
   const fetchProfileXP = async (userId: string) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('profiles')
       .select('total_points')
       .eq('id', userId)
       .single();
 
-    if (data) {
-      setXp(data.total_points || 0);
+    if (data?.total_points) {
+      // Use whichever is higher — localStorage (local quest completions) wins
+      setXp((prev) => Math.max(prev, data.total_points));
     }
   };
 
@@ -149,7 +171,7 @@ export default function Home() {
                 <p className="splash-tagline !mb-2">Welcome back!</p>
                 <div className="bg-zinc-900 border border-zinc-800 rounded-full px-6 py-2 flex items-center gap-3 shadow-lg">
                   <span className="text-yellow-400 text-xl">★</span>
-                  <span className="text-white font-mono text-lg font-bold">{xp} XP</span>
+                  <span className="text-white font-mono text-lg font-bold"> {xp.toLocaleString()} XP</span>
                 </div>
               </div>
             ) : (

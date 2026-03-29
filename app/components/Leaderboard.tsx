@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 
 // Initialize the Supabase client
 const supabase = createClient(
@@ -45,59 +46,61 @@ export default function Leaderboard() {
 
   return (
     <>
-      {/* Floating Action Button - Always Accessible */}
+      {/* Floating Action Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-[9999] flex items-center gap-2 bg-zinc-900 text-white px-4 py-3 rounded-full shadow-2xl border border-zinc-700 hover:bg-zinc-800 transition-all font-mono"
+        className="leaderboard-fab"
         aria-label="Toggle Leaderboard"
       >
-        <span className="btn btn--primary sm:inline">
+        <EmojiEventsIcon className="leaderboard-fab__icon" fontSize="small" />
+        <span className="leaderboard-fab__label">
           {isOpen ? 'Close' : 'Leaderboard'}
         </span>
       </button>
 
       {/* Leaderboard Modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-[#111] border border-zinc-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative">
-            
+        <div className="leaderboard-overlay">
+          <div className="leaderboard-panel">
+
+            {/* Header */}
+            <div className="leaderboard-header">
+              <div className="leaderboard-header__track" />
+              <h2 className="leaderboard-header__title">Top Explorers</h2>
+              <div className="leaderboard-header__track" />
+            </div>
+
             {loading ? (
-              <div className="text-zinc-500 text-center py-8 font-mono animate-pulse">
-                Loading rankings...
+              <div className="leaderboard-loading">
+                <div className="leaderboard-loading__spinner" />
+                <span>Fetching rankings...</span>
               </div>
             ) : leaders.length === 0 ? (
-              <div className="text-zinc-500 text-center py-8 font-mono">
-                No explorers yet.<br/>Be the first!
+              <div className="leaderboard-empty">
+                No explorers yet.<br />Be the first!
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
+              <ol className="leaderboard-list">
                 {leaders.map((player, index) => (
-                  <div 
-                    key={player.id || index} 
-                    className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10"
+                  <li
+                    key={player.id || index}
+                    className={`leaderboard-row ${index === 0 ? 'leaderboard-row--gold' : ''}`}
                   >
-                    <div className="flex items-center gap-3">
-                      <span 
-                        className={`text-lg font-bold w-6 text-center ${
-                          index === 0 ? 'text-yellow-400' : 
-                          index === 1 ? 'text-zinc-300' : 
-                          index === 2 ? 'text-amber-600' : 
-                          'text-zinc-500'
-                        }`}
-                      >
-                        #{index + 1}&nbsp;
-                      </span>
-                      <span className="font-medium text-white">
-                        {player.username || 'Anonymous'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 text-green-400 font-mono">
-                      <span>{player.total_points || 0}</span>
-                      <span className="text-xs opacity-70">&nbsp;pts</span>
-                    </div>
-                  </div>
+                    <span className={`leaderboard-row__rank leaderboard-row__rank--${index + 1}`}>
+                      {index === 0
+                        ? <EmojiEventsIcon fontSize="small" />
+                        : `#${index + 1}`}
+                    </span>
+                    <span className="leaderboard-row__name">
+                      {player.username || 'Anonymous'}
+                    </span>
+                    <span className="leaderboard-row__pts">
+                      {player.total_points || 0}
+                      <span className="leaderboard-row__pts-label">pts</span>
+                    </span>
+                  </li>
                 ))}
-              </div>
+              </ol>
             )}
           </div>
         </div>

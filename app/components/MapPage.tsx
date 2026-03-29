@@ -2,6 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface Station {
   id: string;
@@ -180,6 +186,8 @@ export default function MapPage() {
 
       if (result.success) {
         const earned = adventure.xpReward;
+        
+        // --- KEEP YOUR EXISTING LOCALSTORAGE CODE ---
         const player = JSON.parse(localStorage.getItem('sq_player') ?? '{}');
         const newXP = (player.xp ?? 0) + earned;
         const newCount = (player.questsCompleted ?? 0) + 1;
@@ -202,6 +210,38 @@ export default function MapPage() {
           })
         );
 
+        // ════════════════════════════════════════════════════════════
+        // NEW: DEPOSIT THE POINTS INTO SUPABASE
+        // ════════════════════════════════════════════════════════════
+        try {
+          // 1. Check if the user is actually logged in
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session?.user) {
+            // 2. Fetch their current points from the database
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('total_points')
+              .eq('id', session.user.id)
+              .single();
+
+            const currentDbXP = profile?.total_points || 0;
+            const newDbXP = currentDbXP + earned;
+
+            // 3. Overwrite it with the new total
+            await supabase
+              .from('profiles')
+              .update({ total_points: newDbXP })
+              .eq('id', session.user.id);
+              
+            console.log(`Saved ${earned} XP to database! New total: ${newDbXP}`);
+          }
+        } catch (dbError) {
+          console.error("Failed to save XP to database:", dbError);
+        }
+        // ════════════════════════════════════════════════════════════
+
+        // Finally, send them to the success screen
         router.push('/complete');
       } else {
         setIsVerifying(false);

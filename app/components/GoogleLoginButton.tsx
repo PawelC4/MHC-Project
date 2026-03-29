@@ -1,6 +1,5 @@
 'use client';
 
-import GoogleIcon from '@mui/icons-material/Google';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize the Supabase client
@@ -26,9 +25,20 @@ export default function GoogleLoginButton() {
   };
 
   return (
-    <button onClick={handleGoogleLogin} className="btn btn--primary btn--lg">
-      <GoogleIcon />
-      Sign in with Google
-    </button>
+    <div className="">
+      <button
+        onClick={handleGoogleLogin}
+        className="btn btn--primary flex items-center justify-center gap-3 w-full bg-white text-black hover:bg-gray-100 transition-colors"
+      >
+        <img
+          src="https://www.svgrepo.com/show/355037/google.svg"
+          alt="Google Logo"
+          width={24}
+          height={24}
+          className="w-6 h-6 shrink-0"
+        />
+        Sign in with Google
+      </button>
+    </div>
   );
 }

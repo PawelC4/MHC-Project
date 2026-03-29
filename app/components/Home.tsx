@@ -92,14 +92,22 @@ export default function Home() {
       .eq('id', userId)
       .single();
 
-    if (data?.total_points) {
-      // Use whichever is higher — localStorage (local quest completions) wins
-      setXp((prev) => Math.max(prev, data.total_points));
+    if (data) {
+      const realXP = data.total_points || 0;
+      setXp(realXP);
+
+      const player = JSON.parse(localStorage.getItem('sq_player') ?? '{}');
+      player.xp = realXP;
+      localStorage.setItem('sq_player', JSON.stringify(player));
     }
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+
+    localStorage.removeItem('sq_player');
+    sessionStorage.removeItem('sq_current_adventure');
+    sessionStorage.removeItem('sq_quest_result');
   };
 
   async function handleStart() {
@@ -158,7 +166,7 @@ export default function Home() {
             <div className="splash-logo">
               <span className="logo-track"></span>
               <h1 className="logo-wordmark">
-                Subway
+                Metro
                 <br />
                 Quest
               </h1>
@@ -202,21 +210,26 @@ export default function Home() {
               {isAuthLoading ? (
                 <div className="h-12 flex items-center justify-center text-zinc-500">Loading...</div>
               ) : user ? (
-                <div className='buttons'>
-                  <button onClick={handleStart} className="btn btn--primary btn--lg">
+                <>
+                  <button onClick={handleStart} className="btn btn--primary w-full">
                     Start Next Quest
                   </button>
-                  <button onClick={handleLogout} className="btn btn--ghost">
-                    Sign Out
-                  </button>
-                </div>
+                  <div className="">
+                    <button
+                      onClick={handleLogout}
+                      className="btn btn--signout flex items-center justify-center gap-3 w-full text-black hover:bg-gray-100 transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                </>
               ) : (
-                <div className="buttons">
-                  <GoogleLoginButton />
-                  <button onClick={handleStart} className="btn btn--primary btn--lg">
+                <>
+                  <button onClick={handleStart} className="btn btn--primary">
                     Play as Guest
                   </button>
-                </div>
+                  <GoogleLoginButton />
+                </>
               )}
             </div>
 

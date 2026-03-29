@@ -24,6 +24,9 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "MetroQuest",
   description: "Drop into the unknown. NYC is your adventure map.",
+  icons: {
+    icon: "/METRO-QUEST(40x40px).svg",
+  },
 };
 
 export default function RootLayout({

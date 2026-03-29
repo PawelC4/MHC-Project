@@ -29,6 +29,14 @@ interface DirectionStep {
   icon: string;
   instruction: string;
   durationMin: number;
+  lineName?: string | null;
+  lineColor?: string | null;
+  stopCount?: number | null;
+}
+
+interface DirectionsResult {
+  steps: DirectionStep[];
+  overviewPolyline: string | null;
 }
 
 export default function MapPage() {
@@ -44,7 +52,8 @@ export default function MapPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyText, setVerifyText] = useState('Verifying your photo…');
-  const leafletInitRef = useRef(false);
+
+  const mapInitRef = useRef(false);
 
   // Fade in
   useEffect(() => {
@@ -69,42 +78,51 @@ export default function MapPage() {
     }
   }, [router]);
 
-  // Fetch directions once adventure is loaded
+  // Init map and fetch directions once adventure is loaded
   useEffect(() => {
-    if (!adventure) return;
+    if (!adventure || mapInitRef.current) return;
 
-    import('@/lib/map').then(({ getDirections }) => {
-      // Fall back to station coords offset if user location isn't stored
-      const oLat = userLat ?? adventure.station.lat - 0.02;
-      const oLng = userLng ?? adventure.station.lng - 0.02;
+    // Fall back to station coords offset if user location isn't stored
+    const oLat = userLat ?? adventure.station.lat - 0.02;
+    const oLng = userLng ?? adventure.station.lng - 0.02;
 
+    mapInitRef.current = true;
+
+    import('@/lib/map').then(({ initLeafletMap, getDirections }) => {
       getDirections(oLat, oLng, adventure.station.lat, adventure.station.lng)
-        .then((result: { steps: DirectionStep[] }) => setSteps(result.steps))
-        .catch(() => setSteps([
-          {
-            type: 'subway',
-            icon: '🚇',
-            instruction: `Head to ${adventure.station.name}`,
-            durationMin: adventure.travelMinutes,
-          },
-        ]));
+        .then((result: DirectionsResult) => {
+          setSteps(result.steps);
+          // Now that we have directions (including the route polyline), initialize the map.
+          initLeafletMap(
+            'map-container',
+            oLat,
+            oLng,
+            adventure.station.lat,
+            adventure.station.lng,
+            adventure.station.name,
+            result.overviewPolyline
+          );
+        })
+        .catch(() => {
+          setSteps([
+            {
+              type: 'subway',
+              icon: '🚇',
+              instruction: `Head to ${adventure.station.name}`,
+              durationMin: adventure.travelMinutes,
+            },
+          ]);
+          // Initialize the map even if directions fail, just without the route line.
+          initLeafletMap(
+            'map-container',
+            oLat,
+            oLng,
+            adventure.station.lat,
+            adventure.station.lng,
+            adventure.station.name
+          );
+        });
     });
-  }, [adventure, userLat, userLng]);
-
-  // Init Leaflet map
-  useEffect(() => {
-    if (!adventure || leafletInitRef.current || userLat === null || userLng === null) return;
-
-    leafletInitRef.current = true;
-    import('@/lib/map').then(
-      ({ initLeafletMap }) => {
-        initLeafletMap(
-          'leaflet-map',
-          userLat, userLng,
-          adventure.station.lat, adventure.station.lng, adventure.station.name
-        );
-      }
-    );
   }, [adventure, userLat, userLng]);
 
   // ─── Photo handling ──────────────────────────────────────
@@ -210,7 +228,52 @@ export default function MapPage() {
               <span className="route-node-dot origin-dot" aria-hidden="true"></span>
               <span className="route-node-label">Your Location</span>
             </div>
-            <div className="route-connector" aria-hidden="true"></div>
+            {(() => {
+              const subwayLegs = steps.filter(
+                (step) => step.type === 'subway' && step.lineName
+              );
+
+              if (subwayLegs.length === 0) {
+                return <div className="route-connector" aria-hidden="true"></div>;
+              }
+
+              return (
+                <div
+                  className="route-connector"
+                  aria-hidden="true"
+                  style={{
+                    flex: '1 1 0%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    margin: '0 8px',
+                    minWidth: 0,
+                  }}
+                >
+                  {subwayLegs.map((leg, i) => (
+                    <span
+                      key={`${leg.lineName}-${i}`}
+                      style={{
+                        backgroundColor: leg.lineColor || '#888',
+                        color: (leg.lineColor || '').toLowerCase() === '#fccc0a' ? '#000' : '#fff',
+                        borderRadius: '9999px',
+                        width: '24px',
+                        height: '24px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 'bold',
+                        fontSize: '12px',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {leg.lineName}
+                    </span>
+                  ))}
+                </div>
+              );
+            })()}
             <div className="route-node">
               <span className="route-node-dot dest-dot" aria-hidden="true"></span>
               <span className="route-node-label">{adventure.station.name}</span>
@@ -227,8 +290,38 @@ export default function MapPage() {
             {steps.map((step, i) => (
               <li key={i} className={`direction-step direction-step--${step.type}`}>
                 <span className="step-num">{i + 1}</span>
-                <span className="step-icon" aria-hidden="true">{step.icon}</span>
-                <span className="step-text">{step.instruction}</span>
+                {step.type === 'subway' && step.lineName ? (
+                  <span
+                    className="step-icon"
+                    style={{
+                      backgroundColor: step.lineColor || '#888',
+                      // Use black text for yellow-ish backgrounds for readability
+                      color: (step.lineColor || '').toLowerCase() === '#fccc0a' ? '#000' : '#fff',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '50%',
+                      fontWeight: 'bold',
+                      fontSize: '12px',
+                      flexShrink: 0,
+                    }}
+                    aria-hidden="true"
+                  >
+                    {step.lineName}
+                  </span>
+                ) : (
+                  <span className="step-icon" aria-hidden="true">{step.icon}</span>
+                )}
+                <span className="step-text">
+                  {step.instruction}
+                  {step.stopCount && (
+                    <span style={{ display: 'block', color: '#9ca3af', fontSize: '0.9em', paddingTop: '2px' }}>
+                      {step.stopCount} stop{step.stopCount !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </span>
                 {step.durationMin > 0 && (
                   <span className="step-duration">{step.durationMin}m</span>
                 )}
@@ -297,14 +390,16 @@ export default function MapPage() {
 
       {/* ─── Map canvas ─── */}
       <div className="map-canvas">
-        {/* Leaflet street map panel */}
+
+        {/* Map panel */}
         <div
-          id="panel-street"
+          id="panel-map"
           role="tabpanel"
           className="map-panel active"
         >
-          <div id="leaflet-map"></div>
+          <div id="map-container" style={{ height: '100%', width: '100%' }}></div>
         </div>
+
       </div>
     </div>
   );

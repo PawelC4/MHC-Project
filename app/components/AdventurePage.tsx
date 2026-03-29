@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 interface Station {
   id: string;
@@ -75,13 +76,22 @@ export default function AdventurePage() {
 
   return (
     <div id="view-adventure" className={`view${active ? ' active' : ''}`}>
+      <style>
+        {`
+          .topbar-brand button {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          }
+        `}
+      </style>
 
       {/* Top bar */}
       <header className="topbar">
         <div className="topbar-brand">
           <button onClick={() => router.push('/')}>
-            <span className="topbar-logo">SQ</span>
-            <span className="topbar-name">Subway Quest</span>
+            <Image src="/METRO-QUEST(40x40px).svg" alt="MetroQuest Logo" width={36} height={36} />
+            <span className="topbar-name">Metro Quest</span>
           </button>
         </div>
         <div className="topbar-xp" aria-label="Your XP">
